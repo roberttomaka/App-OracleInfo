@@ -65,6 +65,34 @@ has 'batch' => (
     documentation => "Batchmode",
 );
 
+has 'env' => (
+    traits      => ['Getopt'],
+    cmd_aliases => [qw/e/],
+
+    is  => 'ro',
+    isa => 'ArrayRef',
+
+    documentation => "Env...",
+);
+
+has predefined_module_envs => (
+    traits      => ['NoGetopt'],
+    is          => 'ro',
+    isa         => 'HashRef',
+    lazy_build => 1,
+);
+
+sub _build_predefined_module_envs {
+    my $self = shift;
+    return {
+        'DBIx::Class' => [
+            DBICTEST_ORA_DSN  => sprintf( "dbi:Oracle:%s", $self->sid() ),
+            DBICTEST_ORA_USER => $self->username,
+            DBICTEST_ORA_PASS => $self->password,
+        ]
+    }
+}
+
 sub _build_dbh {
     my $self = shift;
     return DBI->connect( 'dbi:Oracle:' . $self->sid, $self->username, $self->password );
@@ -176,6 +204,18 @@ sub print_foter {
     $self->out->printf( "\nVersion: %s -- END...\n", $App::OracleInfo::VERSION );
 }
 
+sub build_env {
+    my ( $self,$name ) = @_;
+    return @{ $self->predefined_module_envs->{$name} || [] };
+}
+
+sub print_env {
+    my ($self) = @_;
+    foreach my $env ( @{ $self->env } ) {
+        $self->out->env_vars( $self->build_env($env) );
+    }
+}
+
 sub run {
     my ($self) = @_;
     $self->check_attributes();
@@ -185,6 +225,8 @@ sub run {
     $self->print_dbms_info();
     $self->print_priviliges();
     $self->print_dbic_test_env_vars();
+
+    $self->print_env() if $self->env;
 
     $self->print_foter();
 }

@@ -41,6 +41,30 @@ sub color {
     return $self;
 }
 
+sub env_vars {
+    my $self = shift;
+    my @envs = @_;
+    my $out = '';
+    # TODO: shell detection
+    my $shelltype = 'bourne';
+    while (@envs) {
+        my ( $name, $value ) = ( shift(@envs), shift(@envs) );
+        $value =~ s/(\\")/\\$1/g;
+        $out .= $self->${ \"build_${shelltype}_env_declaration" }( $name, $value );
+    }
+    print $out;
+}
+
+sub build_bourne_env_declaration {
+    my ( $self, $name, $value ) = @_;
+    return qq{export ${name}="${value}"\n};
+}
+
+sub build_csh_env_declaration {
+    my ( $self, $name, $value ) = @_;
+    return qq{setenv ${name} "${value}"\n};
+}
+
 __PACKAGE__->meta->make_immutable;
 1;
 __END__
