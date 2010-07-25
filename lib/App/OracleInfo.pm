@@ -1,10 +1,10 @@
 package App::OracleInfo;
 use Data::Dumper;
-use Term::ANSIColor qw(:constants);
 use DBI;
 
 our $VERSION = '0.01';
 
+use App::OracleInfo::Out;
 use Moose;
 with 'MooseX::Getopt';
 
@@ -12,6 +12,13 @@ has dbh => (
     traits     => ['NoGetopt'],
     is         => 'ro',
     lazy_build => 1,
+);
+
+has out => (
+    traits     => ['NoGetopt'],
+    is         => 'ro',
+    lazy       => 1,
+    default    => sub { return App::OracleInfo::Out->new( ctx => shift ) },
 );
 
 has sid => (
@@ -48,6 +55,16 @@ has 'all' => (
     documentation => "Print all informations",
 );
 
+has 'batch' => (
+    traits      => ['Getopt'],
+    cmd_aliases => [qw/b/],
+
+    is  => 'ro',
+    isa => 'Bool',
+
+    documentation => "Batchmode",
+);
+
 sub _build_dbh {
     my $self = shift;
     return DBI->connect( 'dbi:Oracle:' . $self->sid, $self->username, $self->password );
@@ -64,22 +81,15 @@ sub check_attributes {
     }
 }
 
-sub print_headline {
-    my ( $self, $headline ) = @_;
-    print BOLD, YELLOW;
-    printf( "\n%s\n%s\n", $headline, '=' x 50 );
-    print RESET;
-}
-
 sub check_connect {
     my ($self) = @_;
-    printf "\nConnect to %s@%s is : ", $self->username, $self->sid;
+    $self->out->printf("\nConnect to %s@%s is : ", $self->username, $self->sid);
     if ( $self->dbh ) {
-        print GREEN, BOLD "OK\n", RESET;
+        $self->out->color('bold green')->print("OK\n")->color('reset');
     }
     else {
-        print RED, BOLD "FAIL\n", RESET;
-        exit;
+        $self->out->color('bold red')->print("FAIL\n")->color('reset');
+        exit 1;
     }
 }
 
@@ -95,11 +105,11 @@ sub print_dbms_info {
         47 => 'Username'
     );
 
-    $self->print_headline("DBMS Informations");
+    $self->out->headline("DBMS Informations");
 
     foreach my $info_num ( keys %info ) {
         my $text = $info{$info_num};
-        printf( "%-25s: %s\n", $text, $self->dbh->get_info($info_num) );
+        $self->out->printf( "%-25s: %s\n", $text, $self->dbh->get_info($info_num) );
     }
 }
 
@@ -111,11 +121,9 @@ sub print_version {
     #
     my $versions = $self->dbh->selectall_arrayref( q{SELECT * FROM product_component_version}, { Slice => {} } );
     my $version_format = "%-25s %10s %13s\n";
-    print BOLD, YELLOW;
-    printf( "\n" . $version_format . "%s\n", "Product", "Version", "Status", '=' x 50 );
-    print RESET;
+    $self->out->headline(sprintf($version_format,"Product", "Version", "Status"));
     foreach my $version (@$versions) {
-        printf( $version_format, substr( $version->{PRODUCT}, 0, 24 ), $version->{VERSION}, $version->{STATUS} );
+        $self->out->printf( $version_format, substr( $version->{PRODUCT}, 0, 24 ), $version->{VERSION}, $version->{STATUS} );
     }
 }
 
@@ -129,10 +137,10 @@ sub print_priviliges {
     #
     my $privs = $self->dbh->selectall_arrayref( q{SELECT * FROM USER_SYS_PRIVS}, { Slice => {} } );
 
-    $self->print_headline("System Priviliges ( USER_SYS_PRIVS )");
+    $self->out->headline("System Priviliges ( USER_SYS_PRIVS )");
 
     foreach my $priv (@$privs) {
-        printf " * %s\n", $priv->{PRIVILEGE};
+        $self->out->printf(" * %s\n", $priv->{PRIVILEGE});
 
         # printf( $version_format, substr( $version->{PRODUCT}, 0, 24 ), $version->{VERSION}, $version->{STATUS} );
     }
@@ -142,11 +150,11 @@ sub print_priviliges {
     #
     my $roles = $self->dbh->selectall_arrayref( q{SELECT * FROM user_role_privs}, { Slice => {} } );
 
-    $self->print_headline("Role Priviliges ( user_role_privs )");
+    $self->out->headline("Role Priviliges ( user_role_privs )");
     foreach my $role (@$roles) {
 
         # print Dumper $role;
-        printf " * %s\n", $role->{GRANTED_ROLE};
+        $self->out->printf(" * %s\n", $role->{GRANTED_ROLE});
 
         # printf( $version_format, substr( $version->{PRODUCT}, 0, 24 ), $version->{VERSION}, $version->{STATUS} );
     }
@@ -157,7 +165,7 @@ sub print_dbic_test_env_vars {
 
     return unless ( $self->all );
 
-    $self->print_headline("DBIC Test Env Vars");
+    $self->out->headline("DBIC Test Env Vars");
     printf "export DBICTEST_ORA_DSN='dbi:Oracle:%s';\n", $self->sid;
     printf "export DBICTEST_ORA_USER='%s';\n",           $self->username;
     printf "export DBICTEST_ORA_PASS='%s';\n",           $self->password;
@@ -165,7 +173,7 @@ sub print_dbic_test_env_vars {
 
 sub print_foter {
     my ($self) = @_;
-    printf( "\nVersion: %s -- END...\n", $App::OracleInfo::VERSION );
+    $self->out->printf( "\nVersion: %s -- END...\n", $App::OracleInfo::VERSION );
 }
 
 sub run {
@@ -181,3 +189,21 @@ sub run {
     $self->print_foter();
 }
 1;
+__END__
+=head1 NAME
+
+=head1 DESCRIPTION
+
+=head1 SYNOPSIS
+
+=head1 METHODS
+
+=head1 AUTHOR
+
+Robert Bohne <rbo@cpan.org>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
