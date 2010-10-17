@@ -5,13 +5,13 @@ use Moose;
 has ctx => (
     is      => 'ro',
     isa     => 'App::OracleInfo',
-    handles => [qw/batch/],
+    handles => [qw/batch env/],
 );
 
 sub headline {
     my ( $self, $headline ) = @_;
 
-    return $self if $self->batch();
+    return $self if $self->batch() or $self->env();
 
     $self->color('bold yellow')->printf( "\n%s\n%s\n", $headline, '=' x 50 )->color('reset');
 
@@ -20,7 +20,7 @@ sub headline {
 
 sub print {
     my $self = shift;
-    return $self if $self->batch();
+    return $self if $self->batch() or $self->env();
     print @_;
     return $self;
 }
@@ -28,7 +28,7 @@ sub print {
 sub printf {
     my $self = shift;
 
-    return $self if $self->batch();
+    return $self if $self->batch() or $self->env();
 
     my $format = shift;
     printf($format,@_);
@@ -37,6 +37,7 @@ sub printf {
 
 sub color {
     my ( $self, $color ) = @_;
+    return $self if $self->batch() or $self->env();
     print Term::ANSIColor::color($color);
     return $self;
 }

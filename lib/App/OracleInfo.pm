@@ -85,10 +85,15 @@ has predefined_module_envs => (
 sub _build_predefined_module_envs {
     my $self = shift;
     return {
-        'DBIx::Class' => [
+        'DBICTEST' => [
             DBICTEST_ORA_DSN  => sprintf( "dbi:Oracle:%s", $self->sid() ),
             DBICTEST_ORA_USER => $self->username,
             DBICTEST_ORA_PASS => $self->password,
+        ],
+        'DBICTEST_EXTRAUSER' => [
+            DBICTEST_ORA_EXTRAUSER_DSN  => sprintf( "dbi:Oracle:%s", $self->sid() ),
+            DBICTEST_ORA_EXTRAUSER_USER => $self->username,
+            DBICTEST_ORA_EXTRAUSER_PASS => $self->password,
         ]
     }
 }
@@ -188,17 +193,6 @@ sub print_priviliges {
     }
 }
 
-sub print_dbic_test_env_vars {
-    my ($self) = @_;
-
-    return unless ( $self->all );
-
-    $self->out->headline("DBIC Test Env Vars");
-    printf "export DBICTEST_ORA_DSN='dbi:Oracle:%s';\n", $self->sid;
-    printf "export DBICTEST_ORA_USER='%s';\n",           $self->username;
-    printf "export DBICTEST_ORA_PASS='%s';\n",           $self->password;
-}
-
 sub print_foter {
     my ($self) = @_;
     $self->out->printf( "\nVersion: %s -- END...\n", $App::OracleInfo::VERSION );
@@ -211,7 +205,7 @@ sub build_env {
 
 sub print_env {
     my ($self) = @_;
-    foreach my $env ( @{ $self->env } ) {
+    foreach my $env ( @{ $self->env || [] } ) {
         $self->out->env_vars( $self->build_env($env) );
     }
 }
@@ -221,14 +215,16 @@ sub run {
     $self->check_attributes();
     $self->check_connect();
 
-    $self->print_version();
-    $self->print_dbms_info();
-    $self->print_priviliges();
-    $self->print_dbic_test_env_vars();
+    if ( $self->env ){
+        $self->print_env();
+    }else{
+        $self->print_version();
+        $self->print_dbms_info();
+        $self->print_priviliges();
+        $self->print_env();
+        $self->print_foter();
+    }
 
-    $self->print_env() if $self->env;
-
-    $self->print_foter();
 }
 1;
 __END__
